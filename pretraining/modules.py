@@ -255,7 +255,18 @@ class DownsampleNetworkResNet18V1(nn.Module):
         self.layer3 = backbone.layer3
         # self.layer4 = backbone.layer4
 
+    def to(self, device):
+        # 确保所有子模块都移动到正确的设备上
+        self.stem = self.stem.to(device)
+        self.layer1 = self.layer1.to(device)
+        self.layer2 = self.layer2.to(device)
+        self.layer3 = self.layer3.to(device)
+        return super().to(device)
+
     def forward(self, x):
+        device = next(self.parameters()).device
+        x = x.to(device)
+
         x = self.stem(x)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -383,6 +394,7 @@ class RetrieveROIModule(AbstractMILUnit):
         self.num_crops_per_class = parameters["K"]
         self.crop_shape = parameters["crop_shape"]
         self.gpu_number = None if parameters["device_type"]!="gpu" else parameters["gpu_number"]
+        self.device = torch.device(f"cuda:{self.gpu_number}" if self.gpu_number is not None else "cpu")
 
     def forward(self, x_original, cam_size, h_small):
         """
@@ -407,7 +419,7 @@ class RetrieveROIModule(AbstractMILUnit):
         crop_shape_adjusted = (crop_x_adjusted, crop_y_adjusted)
 
         # greedily find the box with max sum of weights
-        current_images = h_small
+        current_images = h_small.to(self.device)
         all_max_position = []
         # combine channels
         max_vals = current_images.view(N, C, -1).max(dim=2, keepdim=True)[0].unsqueeze(-1)
@@ -420,7 +432,7 @@ class RetrieveROIModule(AbstractMILUnit):
         for _ in range(self.num_crops_per_class):
             max_pos = tools.get_max_window(current_images, crop_shape_adjusted, "avg")
             all_max_position.append(max_pos)
-            mask = tools.generate_mask_uplft(current_images, crop_shape_adjusted, max_pos, self.gpu_number)
+            mask = tools.generate_mask_uplft(current_images, crop_shape_adjusted, max_pos.to(self.device), self.gpu_number).to(self.device)
             current_images = current_images * mask
         return torch.cat(all_max_position, dim=1).data.cpu().numpy()
 
@@ -443,6 +455,8 @@ class LocalNetwork(AbstractMILUnit):
         :param x_crop: (N,C,h,w)
         :return:
         """
+        device = next(self.parent_module.dn_resnet.parameters()).device
+        x_crop = x_crop.to(device)
         # forward propagte using ResNet
         res = self.parent_module.dn_resnet(x_crop.expand(-1, 3, -1 , -1))
         # global average pooling
