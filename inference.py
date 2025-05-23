@@ -14,9 +14,11 @@ from ml_collections import ConfigDict
 ''' 使用: python inference.py \
             --config exp/logs/aptos/split_0/config.yml \
             --ckpt exp/logs/aptos/split_0/ckpt_best.pth \
-            --aux_ckpt exp/logs/aptos/split_0/aux_ckpt_best.pth \
+            --aux_ckpt exp/logs/aptos/split_0/aux_ckpt_best.pth \  
             --image your_test_image.jpg \
             --device cuda
+            
+            这里用哪个数据集就写哪个aptos或者isic
 '''
 def load_config(config_path):
     """加载配置文件并转换为ConfigDict格式"""
@@ -49,6 +51,7 @@ class DiffMICPredictor:
     def __init__(self, config_path, ckpt_path, aux_ckpt_path, device='cuda'):
         self.device = torch.device(device)
         self.config = load_config(config_path)
+        self.config.device = device
         self.args = argparse.Namespace()
         self.args.device = device
         self.args.log_path = os.path.dirname(ckpt_path)
@@ -69,7 +72,7 @@ class DiffMICPredictor:
 
         
         # 初始化模型
-        self.model = ConditionalModel(self.config, guidance=self.config.diffusion.include_guidance)
+        self.model = ConditionalModel(self.config, guidance=self.config.diffusion.include_guidance).to(self.device)
         self.model = self.model.to(self.device)
 
         self.cond_pred_model = DCG(self.config).to(self.device)
