@@ -11,7 +11,8 @@ from pretraining.fem import BasicBlock
 class DCG(nn.Module):
     def __init__(self, parameters):
         super(DCG, self).__init__()
-        self.dn_resnet = m.DownsampleNetworkResNet18V1()
+        self.device = torch.device(f"cuda:{parameters.device}" if parameters.device != 'cpu' else "cpu")
+        self.dn_resnet = m.DownsampleNetworkResNet18V1().to(self.device)
 
         # save parameters
         self.experiment_parameters = {
@@ -40,10 +41,10 @@ class DCG(nn.Module):
         self.retrieve_roi_crops = m.RetrieveROIModule(self.experiment_parameters, self)
 
 
-        self.bra = BiLevelRoutingAttention(dim=1024, n_win=2, topk=4)
-        self.basicblock = BasicBlock(1024,1024)
+        self.bra = BiLevelRoutingAttention(dim=1024, n_win=2, topk=4).to(self.device)
+        self.basicblock = BasicBlock(1024,1024).to(self.device)
 
-        self.local_proj = nn.Linear(1024, 7)  # Project y_local to match y_global
+        self.local_proj = nn.Linear(1024, 7).to(self.device)  # Project y_local to match y_global
         # detection network
         self.local_network = m.LocalNetwork(self.experiment_parameters, self)
         self.local_network.add_layers()
