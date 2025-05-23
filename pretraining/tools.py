@@ -191,11 +191,16 @@ def generate_mask_uplft(input_image, window_shape, upper_left_points, gpu_number
     """
     N, C, H, W = input_image.size()
     window_h, window_w = window_shape
+
+    device = torch.device(f"cuda:{gpu_number}" if gpu_number is not None else "cpu")
+    input_image = input_image.to(device)
+    upper_left_points = upper_left_points.to(device)
+
     # get the positions of masks
-    mask_x_min = upper_left_points[:,:,0]
-    mask_x_max = upper_left_points[:,:,0] + window_h
-    mask_y_min = upper_left_points[:,:,1]
-    mask_y_max = upper_left_points[:,:,1] + window_w
+    mask_x_min = upper_left_points[:,:,0].to(device)
+    mask_x_max = upper_left_points[:,:,0].to(device) + window_h
+    mask_y_min = upper_left_points[:,:,1].to(device)
+    mask_y_max = upper_left_points[:,:,1].to(device) + window_w
     # generate masks
     mask_x = Variable(torch.arange(0, H).view(-1, 1).repeat(N, C, 1, W))
     mask_y = Variable(torch.arange(0, W).view(1, -1).repeat(N, C, H, 1))
